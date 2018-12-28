@@ -874,6 +874,58 @@ static UniValue getblock(const JSONRPCRequest& request)
     return blockToJSON(block, pblockindex, verbosity >= 2);
 }
 
+static UniValue getblocktotalvalue(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1) {
+        throw std::runtime_error(
+            RPCHelpMan{"getblocktotalvalue",
+                "\nReturns an Object with information on the total value of transactions in block <hash>.\n",
+                {
+                    {"blockhash", RPCArg::Type::STR_HEX, /* opt */ false, /* default_val */ "", "The block hash"},
+                }}
+                .ToString() +
+            "\nResult:\n"
+            "{\n"
+            "  \"hash\" : \"hash\",            (string) the block hash (same as provided).\n"
+            "  \"nTx\" : n,                  (numeric) The number of transactions in the block.\n"
+            "  \"totalValue\" : x.xxxxxxxx,  (numeric) The total value of all the transactions in the block.\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getblocktotalvalue", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
+            + HelpExampleRpc("getblocktotalvalue", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
+        );
+    }
+
+    LOCK(cs_main);
+
+    uint256 hash(ParseHashV(request.params[0], "blockhash"));
+
+    const CBlockIndex* pblockindex = LookupBlockIndex(hash);
+    if (!pblockindex) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+    }
+
+    const CBlock block = GetBlockChecked(pblockindex);
+
+    AssertLockHeld(cs_main);
+    UniValue result(UniValue::VOBJ);
+
+    double totalValue = 0;
+
+    for(const auto& tx : block.vtx)
+    {
+        UniValue objTx(UniValue::VOBJ);
+        for (unsigned int i = 0; i < tx->vout.size(); i++) {
+            totalValue += tx->vout[i].nValue;
+        }
+    }
+
+    result.pushKV("numTxs", (uint64_t)block.vtx.size());
+    result.pushKV("totalValue", ValueFromAmount(totalValue));
+
+    return result;
+}
+
 struct CCoinsStats
 {
     int nHeight;
@@ -2254,6 +2306,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getbestblockhash",       &getbestblockhash,       {} },
     { "blockchain",         "getblockcount",          &getblockcount,          {} },
     { "blockchain",         "getblock",               &getblock,               {"blockhash","verbosity|verbose"} },
+    { "blockchain",         "getblocktotalvalue",     &getblocktotalvalue,     {"blockhash"} },
     { "blockchain",         "getblockhash",           &getblockhash,           {"height"} },
     { "blockchain",         "getblockheader",         &getblockheader,         {"blockhash","verbose"} },
     { "blockchain",         "getchaintips",           &getchaintips,           {} },
