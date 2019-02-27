@@ -914,7 +914,6 @@ static UniValue getblocktotalvalue(const JSONRPCRequest& request)
 
     for(const auto& tx : block.vtx)
     {
-        UniValue objTx(UniValue::VOBJ);
         for (unsigned int i = 0; i < tx->vout.size(); i++) {
             totalValue += tx->vout[i].nValue;
         }
